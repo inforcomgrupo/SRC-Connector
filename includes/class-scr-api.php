@@ -14,12 +14,6 @@ class SCR_API {
         $this->api_secret = $opts['api_secret'] ?? '';
     }
 
-    /**
-     * Envía un registro al Sistema.
-     *
-     * @param array $datos  Campos mapeados + campos_extra.
-     * @return array        ['success'=>bool, 'message'=>string, 'id'=>int|null]
-     */
     public function enviar( array $datos ): array {
 
         if ( ! $this->api_url || ! $this->api_key || ! $this->api_secret ) {
@@ -31,21 +25,19 @@ class SCR_API {
         $nonce     = wp_generate_password( 16, false );
         $body      = wp_json_encode( $datos );
 
-        // ── Firma HMAC-SHA256 ──
-        // Mensaje = api_key + timestamp + nonce + body
-        $mensaje   = $this->api_key . $timestamp . $nonce . $body;
-        $firma     = hash_hmac( 'sha256', $mensaje, $this->api_secret );
+        $mensaje = $this->api_key . $timestamp . $nonce . $body;
+        $firma   = hash_hmac( 'sha256', $mensaje, $this->api_secret );
 
         $respuesta = wp_remote_post( $endpoint, [
             'timeout' => 15,
             'headers' => [
-                'Content-Type'      => 'application/json',
-                'X-SCR-Key'         => $this->api_key,
-                'X-SCR-Timestamp'   => $timestamp,
-                'X-SCR-Nonce'       => $nonce,
-                'X-SCR-Signature'   => $firma,
+                'Content-Type'    => 'application/json',
+                'X-SCR-Key'       => $this->api_key,
+                'X-SCR-Timestamp' => $timestamp,
+                'X-SCR-Nonce'     => $nonce,
+                'X-SCR-Signature' => $firma,
             ],
-            'body'    => $body,
+            'body' => $body,
         ] );
 
         if ( is_wp_error( $respuesta ) ) {
@@ -63,13 +55,11 @@ class SCR_API {
         return [ 'success' => false, 'message' => $msg ];
     }
 
-    /**
-     * Prueba de conexión (ping).
-     */
     public function ping(): array {
         if ( ! $this->api_url || ! $this->api_key || ! $this->api_secret ) {
             return [ 'success' => false, 'message' => 'Faltan credenciales.' ];
         }
+
         $endpoint  = $this->api_url . 'includes/ajax/api_registrar.php';
         $timestamp = time();
         $nonce     = wp_generate_password( 16, false );
@@ -86,12 +76,13 @@ class SCR_API {
                 'X-SCR-Nonce'     => $nonce,
                 'X-SCR-Signature' => $firma,
             ],
-            'body'    => $body,
+            'body' => $body,
         ] );
 
         if ( is_wp_error( $respuesta ) ) {
             return [ 'success' => false, 'message' => $respuesta->get_error_message() ];
         }
+
         $code = wp_remote_retrieve_response_code( $respuesta );
         $json = json_decode( wp_remote_retrieve_body( $respuesta ), true );
 
