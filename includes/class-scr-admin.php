@@ -4,16 +4,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class SCR_Admin {
 
     public function registrar() {
-        add_action( 'admin_menu',            [ $this, 'menu' ] );
-        add_action( 'admin_enqueue_scripts', [ $this, 'assets' ] );
-        add_action( 'wp_ajax_scr_guardar_config',  [ $this, 'ajax_guardar_config' ] );
-        add_action( 'wp_ajax_scr_ping',            [ $this, 'ajax_ping' ] );
-        add_action( 'wp_ajax_scr_obtener_logs',    [ $this, 'ajax_obtener_logs' ] );
-        add_action( 'wp_ajax_scr_limpiar_logs',    [ $this, 'ajax_limpiar_logs' ] );
-        add_action( 'wp_ajax_scr_reenviar_log',    [ $this, 'ajax_reenviar_log' ] );
-        add_action( 'wp_ajax_scr_obtener_mapeos',  [ $this, 'ajax_obtener_mapeos' ] );
-        add_action( 'wp_ajax_scr_guardar_mapeo',   [ $this, 'ajax_guardar_mapeo' ] );
-        add_action( 'wp_ajax_scr_eliminar_mapeo',  [ $this, 'ajax_eliminar_mapeo' ] );
+        add_action( 'admin_menu',                     [ $this, 'menu' ] );
+        add_action( 'admin_enqueue_scripts',          [ $this, 'assets' ] );
+        add_action( 'wp_ajax_scr_guardar_config',     [ $this, 'ajax_guardar_config' ] );
+        add_action( 'wp_ajax_scr_ping',               [ $this, 'ajax_ping' ] );
+        add_action( 'wp_ajax_scr_obtener_logs',       [ $this, 'ajax_obtener_logs' ] );
+        add_action( 'wp_ajax_scr_limpiar_logs',       [ $this, 'ajax_limpiar_logs' ] );
+        add_action( 'wp_ajax_scr_reenviar_log',       [ $this, 'ajax_reenviar_log' ] );
+        add_action( 'wp_ajax_scr_obtener_mapeos',     [ $this, 'ajax_obtener_mapeos' ] );
+        add_action( 'wp_ajax_scr_guardar_mapeo',      [ $this, 'ajax_guardar_mapeo' ] );
+        add_action( 'wp_ajax_scr_eliminar_mapeo',     [ $this, 'ajax_eliminar_mapeo' ] );
     }
 
     public function menu() {
@@ -28,7 +28,13 @@ class SCR_Admin {
     }
 
     public function assets( $hook ) {
-        if ( strpos( $hook, 'scr-' ) === false && strpos( $hook, 'scr_' ) === false ) return;
+        $slugs = [ 'scr-connector', 'scr-mapeos', 'scr-logs' ];
+        $cargar = false;
+        foreach ( $slugs as $slug ) {
+            if ( strpos( $hook, $slug ) !== false ) { $cargar = true; break; }
+        }
+        if ( ! $cargar ) return;
+
         wp_enqueue_style(  'scr-admin-css', SCR_PLUGIN_URL . 'assets/css/scr-admin.css', [], SCR_VERSION );
         wp_enqueue_script( 'scr-admin-js',  SCR_PLUGIN_URL . 'assets/js/scr-admin.js',  [ 'jquery' ], SCR_VERSION, true );
         wp_localize_script( 'scr-admin-js', 'SCR', [
@@ -130,12 +136,10 @@ class SCR_Admin {
                     </div>
 
                     <div class="scr-mapeo-campos">
-                        <h3>🗺️ Mapeo de Campos — Columnas del Sistema</h3>
-                        <p class="scr-desc">Estos son exactamente los campos que aparecen en las cabeceras del Dashboard.</p>
-
+                        <h3>🗺️ Mapeo de Campos</h3>
+                        <p class="scr-desc">Escribe el nombre exacto del campo de tu formulario para cada columna del Sistema.</p>
                         <div class="scr-mapeo-grid" id="scr_mapeo_grid">
                             <?php
-                            // ── TODOS los campos mapeables (incluyendo ip, fecha, hora) ──
                             $campos = [
                                 'nombre'        => [ 'Nombre',          'Ej: your-name' ],
                                 'apellidos'     => [ 'Apellidos',       'Ej: your-apellidos' ],
@@ -171,15 +175,12 @@ class SCR_Admin {
                             <?php endforeach; ?>
                         </div>
 
-                        <!-- Campo automático: web -->
                         <div class="scr-auto-campos">
-                            <h4>⚙️ Campo generado automáticamente</h4>
-                            <p class="scr-desc">Este campo lo rellena el plugin automáticamente — <strong>no necesitas mapearlo</strong>.</p>
+                            <h4>⚙️ Campos generados automáticamente</h4>
+                            <p class="scr-desc">Estos campos los rellena el plugin — <strong>no necesitas mapearlos</strong>.</p>
                             <div class="scr-auto-grid">
-                                <div class="scr-auto-item">
-                                    <span class="scr-sistema">web</span>
-                                    URL de la página donde está el formulario (tomada automáticamente)
-                                </div>
+                                <div class="scr-auto-item"><span class="scr-sistema">web</span> URL de la página del formulario</div>
+                                <div class="scr-auto-item"><span class="scr-sistema">ip</span> IP del visitante (si no la mapeas)</div>
                             </div>
                         </div>
                     </div>
@@ -200,7 +201,46 @@ class SCR_Admin {
         <?php
     }
 
-    public function pagina_logs() { /* igual que antes */ }
+    public function pagina_logs() {
+        ?>
+        <div class="wrap scr-wrap">
+            <h1><span class="dashicons dashicons-list-view"></span> SCR Connector — Logs de Envío</h1>
+
+            <div class="scr-card">
+                <h2>🔍 Filtros</h2>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Estado</label>
+                        <select id="scr_log_filtro_estado" style="width:140px;">
+                            <option value="">Todos</option>
+                            <option value="exito">✅ Éxito</option>
+                            <option value="error">❌ Error</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Formulario</label>
+                        <input type="text" id="scr_log_filtro_form" class="regular-text" placeholder="Nombre o ID" style="width:220px;">
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="scr_btn_buscar_logs" class="button button-primary">🔍 Buscar</button>
+                        <button id="scr_btn_limpiar_logs" class="button button-secondary">🗑 Limpiar Antiguos</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scr-card">
+                <div id="scr_logs_tabla"><em>Cargando logs...</em></div>
+                <div id="scr_logs_paginacion" style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;"></div>
+            </div>
+        </div>
+        <style>
+            #scr_logs_tabla .scr-log-exito { color:#059669; font-weight:600; }
+            #scr_logs_tabla .scr-log-error { color:#dc2626; font-weight:600; }
+            .scr-pag-btn.activa { background:#2271b1 !important; color:#fff !important; border-color:#2271b1 !important; }
+            .scr-detail-btn { color:#2271b1; cursor:pointer; text-decoration:underline; font-size:11px; }
+        </style>
+        <?php
+    }
 
     // ─────────────────────────────────────────────
     // AJAX
@@ -258,7 +298,7 @@ class SCR_Admin {
         $res     = $api->enviar( $payload );
         $estado  = $res['success'] ? 'exito' : 'error';
         $wpdb->update( $tabla, [ 'estado' => $estado, 'mensaje' => $res['message'] ], [ 'id' => $id ], [ '%s', '%s' ], [ '%d' ] );
-        if ( $res['success'] ) wp_send_json_success( 'Reenviado.' );
+        if ( $res['success'] ) wp_send_json_success( 'Reenviado correctamente.' );
         else wp_send_json_error( $res['message'] );
     }
 
@@ -272,31 +312,42 @@ class SCR_Admin {
     public function ajax_guardar_mapeo() {
         check_ajax_referer( 'scr_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Sin permisos.' );
+
         $opts   = get_option( SCR_OPTION_KEY, [] );
         $mapeos = $opts['mapeos'] ?? [];
+
         $campos_raw = $_POST['campos'] ?? [];
         $campos     = [];
         foreach ( $campos_raw as $k => $v ) {
             $ck = sanitize_key( $k );
             $cv = sanitize_text_field( $v );
-            if ( $cv !== '' ) $campos[ $ck ] = $cv; // solo guardar si tiene valor
+            if ( $cv !== '' ) $campos[ $ck ] = $cv;
         }
+
         $nuevo = [
             'form_id'     => sanitize_text_field( $_POST['form_id']     ?? '' ),
             'form_plugin' => sanitize_text_field( $_POST['form_plugin'] ?? 'cf7' ),
             'nombre'      => sanitize_text_field( $_POST['nombre']      ?? '' ),
-            'activo'      => (bool) ( $_POST['activo'] ?? true ),
+            'activo'      => ( isset( $_POST['activo'] ) && intval( $_POST['activo'] ) === 1 ), // ← CORREGIDO
             'campos'      => $campos,
         ];
+
+        if ( empty( $nuevo['form_id'] ) ) {
+            wp_send_json_error( 'El ID del formulario no puede estar vacío.' );
+        }
+
         $index = $_POST['edit_index'] ?? '';
         if ( $index !== '' && isset( $mapeos[ (int) $index ] ) ) {
             $mapeos[ (int) $index ] = $nuevo;
+            $msg = 'Mapeo actualizado.';
         } else {
             $mapeos[] = $nuevo;
+            $msg = 'Mapeo guardado.';
         }
+
         $opts['mapeos'] = array_values( $mapeos );
         update_option( SCR_OPTION_KEY, $opts );
-        wp_send_json_success( 'Mapeo guardado.' );
+        wp_send_json_success( $msg );
     }
 
     public function ajax_eliminar_mapeo() {
