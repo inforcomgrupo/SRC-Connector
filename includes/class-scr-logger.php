@@ -3,7 +3,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class SCR_Logger {
 
-    // Guarda un log de envío en la tabla WP
     public static function guardar( array $data ): void {
         global $wpdb;
         $tabla = $wpdb->prefix . SCR_LOGS_TABLE;
@@ -11,20 +10,32 @@ class SCR_Logger {
         $wpdb->insert(
             $tabla,
             [
-                'form_id'     => $data['form_id']     ?? '',
-                'form_plugin' => $data['form_plugin']  ?? '',
-                'form_nombre' => $data['form_nombre']  ?? '',
-                'estado'      => $data['estado']       ?? 'error',
+                'form_id'     => $data['form_id']    ?? '',
+                'form_plugin' => $data['form_plugin'] ?? '',
+                'form_nombre' => $data['form_nombre'] ?? '',
+                'estado'      => $data['estado']      ?? 'error',
                 'mensaje'     => mb_substr( $data['mensaje'] ?? '', 0, 1000 ),
-                'payload'     => $data['payload']      ?? '{}',
-                'respuesta'   => $data['respuesta']    ?? '{}',
+                'payload'     => $data['payload']     ?? '{}',
+                'respuesta'   => $data['respuesta']   ?? '{}',
                 'fecha'       => current_time( 'mysql' ),
             ],
             [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
         );
     }
 
-    // Obtiene logs con filtros y paginación
+    // Alias usado por class-scr-hooks.php
+    public static function log( string $form_nombre, string $plugin, string $estado, string $mensaje, array $payload, array $respuesta ): void {
+        self::guardar([
+            'form_id'     => '',
+            'form_plugin' => $plugin,
+            'form_nombre' => $form_nombre,
+            'estado'      => $estado,
+            'mensaje'     => $mensaje,
+            'payload'     => wp_json_encode( $payload ),
+            'respuesta'   => wp_json_encode( $respuesta ),
+        ]);
+    }
+
     public static function obtener( int $pagina = 1, int $por_pagina = 50, string $estado = '', string $form = '' ): array {
         global $wpdb;
         $tabla  = $wpdb->prefix . SCR_LOGS_TABLE;
@@ -56,18 +67,17 @@ class SCR_Logger {
         $logs = $wpdb->get_results( $sql, ARRAY_A ) ?: [];
 
         return [
-            'logs'       => $logs,
-            'total'      => $total,
-            'paginas'    => (int) ceil( $total / $por_pagina ),
-            'pagina'     => $pagina,
+            'rows'    => $logs,    // ← CORREGIDO: era 'logs', el JS espera 'rows'
+            'total'   => $total,
+            'paginas' => (int) ceil( $total / $por_pagina ),
+            'pagina'  => $pagina,
         ];
     }
 
-    // Elimina logs más antiguos que $dias días
     public static function limpiar( int $dias = 30 ): void {
         global $wpdb;
-        $tabla  = $wpdb->prefix . SCR_LOGS_TABLE;
-        $fecha  = date( 'Y-m-d H:i:s', strtotime( "-{$dias} days" ) );
+        $tabla = $wpdb->prefix . SCR_LOGS_TABLE;
+        $fecha = date( 'Y-m-d H:i:s', strtotime( "-{$dias} days" ) );
         $wpdb->query( $wpdb->prepare( "DELETE FROM {$tabla} WHERE fecha < %s", $fecha ) );
     }
 }
