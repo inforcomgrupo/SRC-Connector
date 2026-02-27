@@ -2,22 +2,22 @@
 /**
  * Plugin Name: SCR Connector
  * Description: Conecta formularios WordPress con el Sistema de Control de Registros
- * Version:     1.0.0
+ * Version:     1.0.1
  * Author:      Inforcom Grupo
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'SCR_VERSION',    '1.0.0' );
+define( 'SCR_VERSION',    '1.0.1' );
 define( 'SCR_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'SCR_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SCR_OPTION_KEY', 'scr_connector_options' );
-define( 'SCR_LOGS_TABLE', 'scr_logs' );  // se prefijará con $wpdb->prefix
+define( 'SCR_LOGS_TABLE', 'scr_logs' );
 
 // ── AUTOLOAD ──
 require_once SCR_PLUGIN_DIR . 'includes/class-scr-api.php';
-require_once SCR_PLUGIN_DIR . 'includes/class-scr-logger.php';   // ← CRÍTICO
-require_once SCR_PLUGIN_DIR . 'includes/class-scr-handler.php';
+require_once SCR_PLUGIN_DIR . 'includes/class-scr-logger.php';
+require_once SCR_PLUGIN_DIR . 'includes/class-scr-hooks.php';   // ← CORREGIDO
 require_once SCR_PLUGIN_DIR . 'includes/class-scr-admin.php';
 
 // ── ACTIVACIÓN: crear tabla de logs ──
@@ -49,5 +49,5 @@ function scr_activar() {
 // ── INIT ──
 add_action( 'plugins_loaded', function() {
     ( new SCR_Admin() )->registrar();
-    ( new SCR_Handler() )->registrar();
+    ( new SCR_Hooks() )->registrar();   // ← CORREGIDO
 });
